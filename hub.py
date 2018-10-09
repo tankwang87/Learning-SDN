@@ -18,14 +18,28 @@ class Hub(app_manager.RyuApp):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
+        #install table-miss flow entry
         match = parser.OFPMatch()
         #set switch : send unknown packet to contoller && do not store unknown packet in buffer
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                          ofproto.OFPCML_NO_BUFFER)]
         self.add_flow(datapath, 0, match, actions)
 
+    def add_flow(self, datapath, priority, match, actions, buffer_id = None):
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+
+        #construct a flow mod msg
+        #set instruction : apply all actions on the switch immediately
+        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
+                                            actions)]
+        mod = parser.OFPFlowMod(datapath = datapath, priority = priority,
+                                match = match, instructions = inst)
+
+        datapath.send_msg(mod)
+
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
-    def _packet_handler(self, ev):
+    def packet_handler(self, ev):
         msg = ev.msg
         datapath = msg.datapath
         ofproto = datapath.ofproto
@@ -38,19 +52,8 @@ class Hub(app_manager.RyuApp):
 
         #install flow to avoid same packet next time
         self.add_flow(datapath, 1, match, actions)
+        #process the packet in controller now
         out = parser.OFPPacketOut(
             datapath = datapath, buffer_id = msg.buffer_id, in_port = in_port,
             actions =actions)
         datapath.send_msg(out)
-
-    def add_flow(self, datapath, priority, match, actions, buffer_id = None):
-        ofproto = datapath.ofproto
-        parser = datapath.ofproto_parser
-
-        #set instruction : apply all actions on the switch immediately
-        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
-                                            actions)]
-        mod = parser.OFPFlowMod(datapath = datapath, priority = priority,
-                                match = match, instructions = inst)
-
-        datapath.send_msg(mod)
