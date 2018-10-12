@@ -74,7 +74,9 @@ class ShortestForwardingPath(app_manager.RyuApp):
         if src not in self.network:
             self.network.add_node(src)
             #link from switch to host
+            #work with networkx v1.1
             #self.network.add_edge(dpid, src, {'port': in_port})
+            #work with network v2.2
             self.network.add_edge(dpid, src, port = in_port)
             self.network.add_edge(src, dpid)
             self.paths.setdefault(src, {})
